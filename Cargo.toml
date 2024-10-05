@@ -4,4 +4,14 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 
+[profile.dev]
+opt-level = "s"
+overflow-checks = false
+panic = "abort"
+
+[profile.release]
+opt-level = "s"
+overflow-checks = false
+panic = "abort"
+
 [dependencies]
