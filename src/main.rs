@@ -1,8 +1,8 @@
 #![no_std]
 #![no_main]
 
-#[no_mangle]
-fn main() {
+#[avr_device::entry]
+fn main() -> ! {
     let peripherals = unsafe { avr_device::attiny85::Peripherals::steal() };
     peripherals
         .PORTB
