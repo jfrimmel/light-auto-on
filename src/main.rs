@@ -29,18 +29,8 @@ fn main() -> ! {
     loop {
         peripherals.PORTB.pinb.write(|w| w.pb4().set_bit());
 
-        // configure the watchdog timer to trigger in ~8s
-        peripherals
-            .WDT
-            .wdtcr
-            .write(|w| w.wdie().set_bit().wdph().set_bit().wdpl().cycles_4k_1024k());
-        power::sleep(&mut peripherals.CPU);
+        power::sleep_for::<1024>(&mut peripherals.CPU, &mut peripherals.WDT);
     }
-}
-
-#[avr_device::interrupt(attiny85)]
-fn WDT() {
-    // deliberately empty, just used for waking up the device.
 }
 
 /// The panic handler of the application.
