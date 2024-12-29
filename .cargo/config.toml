@@ -3,3 +3,6 @@ target = "avr-unknown-gnu-attiny85.json"
 
 [unstable]
 build-std = ["core"]
+
+[target.'cfg(target_arch = "avr")']
+runner = "./.runner"

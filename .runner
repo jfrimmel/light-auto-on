@@ -1,0 +1,2 @@
+#!/bin/sh
+exec avrdude -c stk500v2 -P /dev/ttyACM0 -p t85 -b 115200 -B 10kHz -U "flash:w:$1"
