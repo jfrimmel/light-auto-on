@@ -8,11 +8,13 @@ publish = false
 opt-level = "s"
 overflow-checks = false
 panic = "abort"
+lto = true
 
 [profile.release]
 opt-level = "s"
 overflow-checks = false
 panic = "abort"
+lto = true
 
 [dependencies]
 avr-device = { version = "0.6.0", features = ["attiny85", "rt"] }
