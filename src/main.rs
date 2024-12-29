@@ -9,6 +9,11 @@ fn main() -> ! {
     // introduces a "possible panic" into the code with additional code being
     // generated. Therefore, this `unsafe`-function is used.
     let peripherals = unsafe { avr_device::attiny85::Peripherals::steal() };
+
+    // Divide the system clock by 256, which yields a clock of 8MHz/256≈31kHz
+    peripherals.CPU.clkpr.write(|w| w.clkpce().set_bit());
+    peripherals.CPU.clkpr.write(|w| w.clkps().prescaler_256());
+
     peripherals
         .PORTB
         .ddrb
