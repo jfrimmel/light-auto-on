@@ -14,6 +14,12 @@ fn main() -> ! {
     peripherals.CPU.clkpr.write(|w| w.clkpce().set_bit());
     peripherals.CPU.clkpr.write(|w| w.clkps().prescaler_256());
 
+    // Power down all unused peripherals
+    peripherals
+        .CPU
+        .prr
+        .write(|w| w.pradc().set_bit().prusi().set_bit().prtim1().set_bit());
+
     peripherals
         .PORTB
         .ddrb
