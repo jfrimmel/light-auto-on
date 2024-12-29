@@ -2,23 +2,18 @@
 #![no_main]
 #![feature(abi_avr_interrupt)]
 
+mod power;
+
 #[avr_device::entry]
 fn main() -> ! {
     // SAFETY: this is the first an only time, the peripherals are taken.
     // Normally, this would be done via the safe `take()`-function, but this
     // introduces a "possible panic" into the code with additional code being
     // generated. Therefore, this `unsafe`-function is used.
-    let peripherals = unsafe { avr_device::attiny85::Peripherals::steal() };
+    let mut peripherals = unsafe { avr_device::attiny85::Peripherals::steal() };
 
-    // Divide the system clock by 256, which yields a clock of 8MHz/256≈31kHz
-    peripherals.CPU.clkpr.write(|w| w.clkpce().set_bit());
-    peripherals.CPU.clkpr.write(|w| w.clkps().prescaler_256());
-
-    // Power down all unused peripherals
-    peripherals
-        .CPU
-        .prr
-        .write(|w| w.pradc().set_bit().prusi().set_bit().prtim1().set_bit());
+    power::divide_system_clock_by::<256>(&mut peripherals.CPU); // 8MHz/256≈31kHz
+    power::disable_unused_peripherals(&mut peripherals.CPU);
 
     peripherals
         .PORTB
@@ -39,13 +34,7 @@ fn main() -> ! {
             .WDT
             .wdtcr
             .write(|w| w.wdie().set_bit().wdph().set_bit().wdpl().cycles_4k_1024k());
-
-        // enter sleep mode, wake-up is triggered by the next watchdog interrupt
-        peripherals.CPU.mcucr.modify(|_r, w| w.se().set_bit());
-        // SAFETY: this function is not called during `interrupt::free`
-        unsafe { avr_device::interrupt::enable() };
-        avr_device::asm::sleep();
-        peripherals.CPU.mcucr.modify(|_r, w| w.se().clear_bit());
+        power::sleep(&mut peripherals.CPU);
     }
 }
 
