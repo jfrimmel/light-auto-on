@@ -15,21 +15,21 @@ fn main() -> ! {
     power::divide_system_clock_by::<256>(&mut peripherals.CPU); // 8MHz/256≈31kHz
     power::disable_unused_peripherals(&mut peripherals.CPU);
 
-    peripherals
-        .PORTB
-        .ddrb
-        .modify(|_r, w| w.pb3().set_bit().pb4().set_bit());
-    peripherals
-        .PORTB
-        .portb
-        .modify(|_r, w| w.pb3().set_bit().pb4().clear_bit());
+    peripherals.PORTB.ddrb.write(|w| w.pb0().set_bit());
 
-    // configure sleep mode to be power down.
-    peripherals.CPU.mcucr.write(|w| w.sm().pdown());
+    peripherals
+        .TC0
+        .tccr0a
+        .write(|w| w.wgm0().pwm_fast().com0a().match_clear());
+    peripherals.TC0.tccr0b.write(|w| w.cs0().direct());
+
+    // configure sleep mode to be idle (since PWM is not working in power down).
+    peripherals.CPU.mcucr.write(|w| w.sm().idle());
     loop {
-        peripherals.PORTB.pinb.write(|w| w.pb4().set_bit());
-
-        power::sleep_for::<1024>(&mut peripherals.CPU, &mut peripherals.WDT);
+        for duty_cycle in 0..=255 {
+            peripherals.TC0.ocr0a.write(|w| w.bits(duty_cycle));
+            power::sleep_for::<2>(&mut peripherals.CPU, &mut peripherals.WDT);
+        }
     }
 }
 
