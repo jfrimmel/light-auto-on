@@ -22,28 +22,39 @@ fn main() -> ! {
         108, 128, 152, 181, 215, 255,
     ];
 
+    let cpu = &mut peripherals.CPU;
+    let watchdog = &mut peripherals.WDT;
     let mut timer = timer0::Timer0::new(peripherals.TC0, &mut peripherals.PORTB);
 
+    enum StateMachine {
+        Off,
+        TurningOn,
+        On,
+        TurningOff,
+    }
+    let mut state = StateMachine::Off;
     loop {
-        // configure sleep mode to be idle (since PWM is not working in power down).
-        peripherals.CPU.mcucr.write(|w| w.sm().idle());
-        timer.pwm(&LINEARIZATION, || {
-            power::sleep_for::<4>(&mut peripherals.CPU, &mut peripherals.WDT)
-        });
+        state = match state {
+            StateMachine::Off if true => StateMachine::TurningOn,
+            StateMachine::TurningOn => {
+                cpu.mcucr.write(|w| w.sm().idle());
+                timer.pwm(&LINEARIZATION, || power::sleep_for::<4>(cpu, watchdog));
+                timer.halt();
+                StateMachine::On
+            }
+            StateMachine::On if true => StateMachine::TurningOff,
+            StateMachine::TurningOff => {
+                let sequence = LINEARIZATION.iter().rev();
+                cpu.mcucr.write(|w| w.sm().idle());
+                timer.pwm(sequence, || power::sleep_for::<4>(cpu, watchdog));
+                timer.halt();
+                StateMachine::Off
+            }
+            old_state => old_state,
+        };
 
-        timer.halt();
-        peripherals.CPU.mcucr.write(|w| w.sm().pdown());
-        power::sleep_for::<256>(&mut peripherals.CPU, &mut peripherals.WDT);
-
-        // configure sleep mode to be idle (since PWM is not working in power down).
-        peripherals.CPU.mcucr.write(|w| w.sm().idle());
-        timer.pwm(LINEARIZATION.iter().rev(), || {
-            power::sleep_for::<4>(&mut peripherals.CPU, &mut peripherals.WDT)
-        });
-        timer.halt();
-
-        peripherals.CPU.mcucr.write(|w| w.sm().pdown());
-        power::sleep_for::<256>(&mut peripherals.CPU, &mut peripherals.WDT);
+        cpu.mcucr.write(|w| w.sm().pdown());
+        power::sleep_for::<256>(cpu, watchdog);
     }
 }
 
