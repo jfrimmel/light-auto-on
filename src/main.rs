@@ -2,6 +2,8 @@
 #![no_main]
 #![feature(abi_avr_interrupt)]
 
+use avr_device::attiny85::{CPU, EXINT, PORTB, WDT};
+
 mod power;
 mod timer0;
 
@@ -23,8 +25,10 @@ fn main() -> ! {
     ];
 
     let cpu = &mut peripherals.CPU;
+    let ext = &mut peripherals.EXINT;
+    let portb = &mut peripherals.PORTB;
     let watchdog = &mut peripherals.WDT;
-    let mut timer = timer0::Timer0::new(peripherals.TC0, &mut peripherals.PORTB);
+    let mut timer = timer0::Timer0::new(peripherals.TC0, portb);
 
     enum StateMachine {
         Off,
@@ -34,15 +38,16 @@ fn main() -> ! {
     }
     let mut state = StateMachine::Off;
     loop {
+        let mut detect = || object_detected(&mut timer, cpu, watchdog, portb, ext);
         state = match state {
-            StateMachine::Off if true => StateMachine::TurningOn,
+            StateMachine::Off if detect() => StateMachine::TurningOn,
             StateMachine::TurningOn => {
                 cpu.mcucr.write(|w| w.sm().idle());
                 timer.pwm(&LINEARIZATION, || power::sleep_for::<4>(cpu, watchdog));
                 timer.halt();
                 StateMachine::On
             }
-            StateMachine::On if true => StateMachine::TurningOff,
+            StateMachine::On if !detect() => StateMachine::TurningOff,
             StateMachine::TurningOff => {
                 let sequence = LINEARIZATION.iter().rev();
                 cpu.mcucr.write(|w| w.sm().idle());
@@ -56,6 +61,82 @@ fn main() -> ! {
         cpu.mcucr.write(|w| w.sm().pdown());
         power::sleep_for::<256>(cpu, watchdog);
     }
+}
+
+/// Check, if the SRF05 sensor detects an objected, i.e. a distance value is
+/// below a (hardcoded) threshold.
+///
+/// The SRF05 sensor is not powered continuously in order to save power in idle
+/// mode. This is done by connecting its power pin to PB4 of the µC. Therefore
+/// this function will power on the sensor and wait for it to start up (the boot
+/// time of the sensor is determined empirically: 64ms is to short, but 96ms
+/// always works, so this is used). Afterwards, it will generate a long enough
+/// trigger pulse and wait for the resulting pulse-length.
+///
+/// In order to save power, there is no accurate reading of the pulse length
+/// (corresponding to the distance). Instead the timer value (with the prescaled
+/// system clock) is compared to a empirically-chosen threshold).
+///
+/// If the pulse width is below the selected threshold, the function has an
+/// object detected.
+fn object_detected(
+    timer: &mut timer0::Timer0,
+    cpu: &mut CPU,
+    watchdog: &mut WDT,
+    portb: &mut PORTB,
+    ext: &mut EXINT,
+) -> bool {
+    power::divide_system_clock_by::<256>(cpu);
+    cpu.mcucr.write(|w| w.sm().pdown());
+
+    ext.pcmsk.write(|w| w.pcint3().set_bit());
+    ext.gimsk.write(|w| w.pcie().set_bit());
+
+    // power the sensor on
+    portb.ddrb.modify(|_, w| w.pb4().set_bit());
+    portb.portb.modify(|_, w| w.pb4().set_bit());
+    power::sleep_for::<4>(cpu, watchdog); // roughly ~32ms
+    power::sleep_for::<8>(cpu, watchdog); // roughly ~64ms
+
+    // set the trigger/signal pin to output (trigger)
+    portb.ddrb.modify(|_, w| w.pb3().set_bit());
+
+    // generate a trigger signal of at least 10µs
+    portb.portb.modify(|_, w| w.pb3().set_bit());
+    avr_device::asm::nop();
+    // no sleep necessary here (core runs slow enough)
+    portb.portb.modify(|_, w| w.pb3().clear_bit());
+
+    // set the trigger/signal pin to input (signal)
+    portb.ddrb.modify(|_, w| w.pb3().clear_bit());
+
+    // wait for PCINT3 to trigger
+    while portb.pinb.read().pb3().bit_is_clear() {
+        //power::sleep(cpu);
+    }
+    timer.start();
+
+    cpu.mcucr.write(|w| w.sm().idle()); // the timer must count in sleep
+
+    let start = timer.current();
+    // wait for PCINT3 to trigger
+    while portb.pinb.read().pb3().bit_is_set() {
+        //power::sleep(cpu);
+    }
+    timer.halt();
+
+    // measurement done: power the sensor off
+    portb.portb.modify(|_, w| w.pb4().clear_bit());
+
+    let duration = timer.current().wrapping_sub(start);
+
+    duration < 50 // empirically chosen
+}
+
+#[allow(clippy::missing_const_for_fn)]
+#[avr_device::interrupt(attiny85)]
+fn PCINT0() {
+    // deliberately empty, just used for waking up the device.
 }
 
 /// The panic handler of the application.

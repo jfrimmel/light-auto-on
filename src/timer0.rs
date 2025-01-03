@@ -33,7 +33,18 @@ impl Timer0 {
         }
     }
 
-    // Stop the timer, preserving the previous last PWM output value.
+    /// Start the timer (resuming to output the previous PWM value).
+    pub fn start(&mut self) {
+        self.0.tcnt0.reset();
+        self.0.tccr0b.write(|w| w.cs0().direct());
+    }
+
+    /// Read the current timer value.
+    pub fn current(&self) -> u8 {
+        self.0.tcnt0.read().bits()
+    }
+
+    /// Stop the timer, preserving the previous last PWM output value.
     pub fn halt(&mut self) {
         self.0.tccr0b.write(|w| w.cs0().no_clock());
     }
