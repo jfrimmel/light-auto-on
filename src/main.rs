@@ -76,7 +76,9 @@ fn main() -> ! {
 /// In order to save power, there is no accurate reading of the pulse length
 /// (corresponding to the distance). Instead, a rough estimate is done by having
 /// large enough system clock and timer prescaler to have all possible distances
-/// inside the
+/// inside the measurement window. The controller sleeps most of the time by
+/// waiting for watchdog or pin-change interrupts and only performing the most
+/// necessary operations.
 ///
 /// If the pulse width is below the selected threshold, the function has an
 /// object detected.
@@ -91,7 +93,6 @@ fn object_detected(
     cpu.mcucr.write(|w| w.sm().pdown());
 
     ext.pcmsk.write(|w| w.pcint3().set_bit());
-    ext.gimsk.write(|w| w.pcie().set_bit());
 
     // power the sensor on
     portb.ddrb.modify(|_, w| w.pb4().set_bit());
@@ -111,10 +112,17 @@ fn object_detected(
     // set the trigger/signal pin to input (signal)
     portb.ddrb.modify(|_, w| w.pb3().clear_bit());
 
+    // Speed up the system clock by a bit. If this is not done, the first PCINT
+    // interrupt vector fires to late, so that the program misses an edge. As it
+    // sleeps almost for the entire time in power down mode, this is fine.
+    power::divide_system_clock_by::<64>(cpu);
+
     // wait for PCINT3 to trigger
+    ext.gimsk.write(|w| w.pcie().set_bit());
     while portb.pinb.read().pb3().bit_is_clear() {
-        //power::sleep(cpu);
+        power::sleep(cpu);
     }
+    ext.gimsk.write(|w| w.pcie().clear_bit());
     timer.start();
 
     cpu.mcucr.write(|w| w.sm().idle()); // the timer must count in sleep
@@ -136,9 +144,11 @@ fn object_detected(
 
     let start = timer.current();
     // wait for PCINT3 to trigger
+    ext.gimsk.write(|w| w.pcie().set_bit());
     while portb.pinb.read().pb3().bit_is_set() {
-        //power::sleep(cpu);
+        power::sleep(cpu);
     }
+    ext.gimsk.write(|w| w.pcie().clear_bit());
     timer.halt();
 
     // measurement done: power the sensor off
