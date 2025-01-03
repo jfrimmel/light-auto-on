@@ -74,8 +74,9 @@ fn main() -> ! {
 /// trigger pulse and wait for the resulting pulse-length.
 ///
 /// In order to save power, there is no accurate reading of the pulse length
-/// (corresponding to the distance). Instead the timer value (with the prescaled
-/// system clock) is compared to a empirically-chosen threshold).
+/// (corresponding to the distance). Instead, a rough estimate is done by having
+/// large enough system clock and timer prescaler to have all possible distances
+/// inside the
 ///
 /// If the pulse width is below the selected threshold, the function has an
 /// object detected.
@@ -118,6 +119,21 @@ fn object_detected(
 
     cpu.mcucr.write(|w| w.sm().idle()); // the timer must count in sleep
 
+    // The SRF05 has a maximum pulse length 0f 30ms. Since timer 0 is an 8bit
+    // timer, that value must fit into an 8bit number to prevent overflows (i.e.
+    // `(8000000Hz/p)*0.03s < 256` where `p` is the prescaler). So, the total
+    // timer prescaler `p` (which itself consists of the system clock prescaler
+    // and the timer prescaler) must be chosen large enough to fulfill the in-
+    // equality above but as small as possible to still have adequate resolution
+    // in the measurement.
+    // Furthermore the system clock divider should be large in order to save
+    // power.
+    // A system prescaler of 128 and a timer prescaler of 8 allow for a maximum
+    // pulse length of 32kµs, which is enough. With this setting, a single timer
+    // count (i.e. the LSB) is equal to 128µs or roughly 2cm.
+    power::divide_system_clock_by::<128>(cpu);
+    timer.prescale_by::<8>();
+
     let start = timer.current();
     // wait for PCINT3 to trigger
     while portb.pinb.read().pb3().bit_is_set() {
@@ -130,7 +146,7 @@ fn object_detected(
 
     let duration = timer.current().wrapping_sub(start);
 
-    duration < 50 // empirically chosen
+    duration < (140 / 2) // empirically chosen
 }
 
 #[allow(clippy::missing_const_for_fn)]
