@@ -141,6 +141,13 @@ fn object_detected(
     // count (i.e. the LSB) is equal to 128µs or roughly 2cm.
     power::divide_system_clock_by::<128>(cpu);
     timer.prescale_by::<8>();
+    const DISTANCE_PER_TICK: f32 = 1000000.0 / (8000000.0 / 128.0 / 8.0) / 58.;
+    //                             ════╤════    ════╤════   ══╤══   ═╤═    ═╤═
+    //                 #µs in 1s ──────┘            │         │      │      │
+    //             #cycles in 1s ───────────────────┘         │      │      │
+    //      system clock divider ─────────────────────────────┘      │      │
+    //           timer prescaler ────────────────────────────────────┘      │
+    //  #µs in 1cm (to & return) ───────────────────────────────────────────┘
 
     let start = timer.current();
     // wait for PCINT3 to trigger
@@ -156,7 +163,7 @@ fn object_detected(
 
     let duration = timer.current().wrapping_sub(start);
 
-    duration < (140 / 2) // empirically chosen
+    duration < (140.0 / DISTANCE_PER_TICK) as u8 // empirically chosen
 }
 
 #[allow(clippy::missing_const_for_fn)]
