@@ -198,7 +198,9 @@ fn object_detected(
 
     let duration = timer.current().wrapping_sub(start);
 
-    duration < (DISTANCE_THRESHOLD_CM / DISTANCE_PER_TICK) as u8
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // user is responsible
+    let threshold = (DISTANCE_THRESHOLD_CM / DISTANCE_PER_TICK) as u8;
+    duration < threshold
 }
 
 #[allow(clippy::missing_const_for_fn)]
