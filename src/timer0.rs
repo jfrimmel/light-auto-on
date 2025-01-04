@@ -1,4 +1,7 @@
 //! Configuration of the Timer/counter 0 as a PWM generator or timebase.
+
+#![allow(clippy::needless_pass_by_ref_mut)] // see comment in `power.rs` for rationale
+
 use avr_device::attiny85::{tc0::tccr0b::CS0_A, PORTB, TC0};
 
 /// Access to the 8bit timer/counter 0 peripheral.

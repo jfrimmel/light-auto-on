@@ -115,6 +115,7 @@ const DISTANCE_THRESHOLD_CM: f32 = 160.;
 ///
 /// If the pulse width is below the selected threshold, the function has an
 /// object detected.
+#[allow(clippy::needless_pass_by_ref_mut)] // see comment in `power.rs` for rationale
 fn object_detected(
     timer: &mut timer0::Timer0,
     cpu: &mut CPU,
