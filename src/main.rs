@@ -16,7 +16,7 @@ fn main() -> ! {
     let mut peripherals = unsafe { avr_device::attiny85::Peripherals::steal() };
 
     power::divide_system_clock_by::<256>(&mut peripherals.CPU); // 8MHz/256≈31kHz
-    power::disable_unused_peripherals(&mut peripherals.CPU);
+    power::disable_unused_peripherals(&mut peripherals.CPU, &mut peripherals.AC);
 
     // https://www.mikrocontroller.net/articles/LED-Fading
     const LINEARIZATION: [u8; 32] = [

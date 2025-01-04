@@ -11,7 +11,7 @@
 // references, even if they would not need to by the borrow checker.
 #![allow(clippy::needless_pass_by_ref_mut)]
 
-use avr_device::attiny85::{CPU, WDT};
+use avr_device::attiny85::{AC, CPU, WDT};
 
 pub fn divide_system_clock_by<const N: usize>(cpu: &mut CPU) {
     use avr_device::attiny85::cpu::clkpr::CLKPS_A;
@@ -32,9 +32,10 @@ pub fn divide_system_clock_by<const N: usize>(cpu: &mut CPU) {
     cpu.clkpr.write(|w| w.clkps().variant(prescaler));
 }
 
-pub fn disable_unused_peripherals(cpu: &mut CPU) {
+pub fn disable_unused_peripherals(cpu: &mut CPU, comparator: &mut AC) {
     cpu.prr
         .write(|w| w.pradc().set_bit().prusi().set_bit().prtim1().set_bit());
+    comparator.acsr.write(|w| w.acd().set_bit());
 }
 
 pub fn sleep(cpu: &mut CPU) {
