@@ -63,6 +63,17 @@ fn main() -> ! {
     }
 }
 
+/// The distance threshold und which the distance sensor has detected an object.
+///
+/// This is the distance in centimeters, that is used in [`object_detected()`]
+/// function to determine, if there is an object in front of the sensor. This
+/// should be set to the largest value that reliably does not "detect" the
+/// environment around the sensor in order to be sensitive enough.
+///
+/// Note, that the sensor resolution is limited to ~2cm due to the caveats
+/// described in the [`object_detected()`] function.
+const DISTANCE_THRESHOLD_CM: f32 = 160.;
+
 /// Check, if the SRF05 sensor detects an objected, i.e. a distance value is
 /// below a (hardcoded) threshold.
 ///
@@ -163,7 +174,7 @@ fn object_detected(
 
     let duration = timer.current().wrapping_sub(start);
 
-    duration < (140.0 / DISTANCE_PER_TICK) as u8 // empirically chosen
+    duration < (DISTANCE_THRESHOLD_CM / DISTANCE_PER_TICK) as u8
 }
 
 #[allow(clippy::missing_const_for_fn)]
