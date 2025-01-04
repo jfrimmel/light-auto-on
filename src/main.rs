@@ -7,6 +7,40 @@ use avr_device::attiny85::{CPU, EXINT, PORTB, WDT};
 mod power;
 mod timer0;
 
+/// Inverse-logarithmic table for perceived linear brightness of LEDs.
+///
+/// This table was taken from [LED-Fading on microncontroller.net][uC.net], more
+/// specifically the values of `pwmtable_8D`. This is the "best" 8bit PWM
+/// presented on that page.
+///
+/// [uC.net]: https://www.mikrocontroller.net/index.php?title=LED-Fading&oldid=106397
+const LINEARIZATION: [u8; 32] = [
+    0, 1, 2, 2, 2, 3, 3, 4, 5, 6, 7, 8, 10, 11, 13, 16, 19, 23, 27, 32, 38, 45, 54, 64, 76, 91,
+    108, 128, 152, 181, 215, 255,
+];
+
+/// The different states of the main-loop.
+enum StateMachine {
+    /// The LEDs are currently off.
+    ///
+    /// This state will transition to [`StateMachine::TurningOn`] if the value
+    /// of the currently measured distance is below [`DISTANCE_THRESHOLD_CM`].
+    Off,
+    /// The LEDs are get faded in.
+    ///
+    /// The next state will always be [`StateMachine::On`].
+    TurningOn,
+    /// The LEDs are currently on.
+    ///
+    /// This state will transition to [`StateMachine::TurningOff`] if the value
+    /// of the currently measured distance is above [`DISTANCE_THRESHOLD_CM`].
+    On,
+    /// The LEDs are get faded out.
+    ///
+    /// The next state will always be [`StateMachine::Off`].
+    TurningOff,
+}
+
 #[avr_device::entry]
 fn main() -> ! {
     // SAFETY: this is the first an only time, the peripherals are taken.
@@ -18,24 +52,12 @@ fn main() -> ! {
     power::divide_system_clock_by::<256>(&mut peripherals.CPU); // 8MHz/256≈31kHz
     power::disable_unused_peripherals(&mut peripherals.CPU, &mut peripherals.AC);
 
-    // https://www.mikrocontroller.net/articles/LED-Fading
-    const LINEARIZATION: [u8; 32] = [
-        0, 1, 2, 2, 2, 3, 3, 4, 5, 6, 7, 8, 10, 11, 13, 16, 19, 23, 27, 32, 38, 45, 54, 64, 76, 91,
-        108, 128, 152, 181, 215, 255,
-    ];
-
     let cpu = &mut peripherals.CPU;
     let ext = &mut peripherals.EXINT;
     let portb = &mut peripherals.PORTB;
     let watchdog = &mut peripherals.WDT;
     let mut timer = timer0::Timer0::new(peripherals.TC0, portb);
 
-    enum StateMachine {
-        Off,
-        TurningOn,
-        On,
-        TurningOff,
-    }
     let mut state = StateMachine::Off;
     loop {
         let mut detect = || object_detected(&mut timer, cpu, watchdog, portb, ext);
@@ -152,6 +174,7 @@ fn object_detected(
     // count (i.e. the LSB) is equal to 128µs or roughly 2cm.
     power::divide_system_clock_by::<128>(cpu);
     timer.prescale_by::<8>();
+    #[allow(clippy::items_after_statements)] // it makes sense to place it here
     const DISTANCE_PER_TICK: f32 = 1000000.0 / (8000000.0 / 128.0 / 8.0) / 58.;
     //                             ════╤════    ════╤════   ══╤══   ═╤═    ═╤═
     //                 #µs in 1s ──────┘            │         │      │      │
