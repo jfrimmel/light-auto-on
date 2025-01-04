@@ -175,13 +175,13 @@ fn object_detected(
     power::divide_system_clock_by::<128>(cpu);
     timer.prescale_by::<8>();
     #[allow(clippy::items_after_statements)] // it makes sense to place it here
-    const DISTANCE_PER_TICK: f32 = 1000000.0 / (8000000.0 / 128.0 / 8.0) / 58.;
-    //                             ════╤════    ════╤════   ══╤══   ═╤═    ═╤═
-    //                 #µs in 1s ──────┘            │         │      │      │
-    //             #cycles in 1s ───────────────────┘         │      │      │
-    //      system clock divider ─────────────────────────────┘      │      │
-    //           timer prescaler ────────────────────────────────────┘      │
-    //  #µs in 1cm (to & return) ───────────────────────────────────────────┘
+    const DISTANCE_PER_TICK: f32 = 1_000_000.0 / (8_000_000.0 / 128.0 / 8.0) / 58.;
+    //                             ═════╤═════    ═════╤═════   ══╤══   ═╤═    ═╤═
+    //                 #µs in 1s ───────┘              │          │      │      │
+    //             #cycles in 1s ──────────────────────┘          │      │      │
+    //      system clock divider ─────────────────────────────────┘      │      │
+    //           timer prescaler ────────────────────────────────────────┘      │
+    //  #µs in 1cm (to & return) ───────────────────────────────────────────────┘
 
     let start = timer.current();
     // wait for PCINT3 to trigger
