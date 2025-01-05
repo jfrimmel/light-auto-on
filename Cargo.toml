@@ -17,4 +17,4 @@ panic = "abort"
 lto = true
 
 [dependencies]
-avr-device = { version = "0.6.0", features = ["attiny85", "rt"] }
+avr-device = { version = "0.7.0", features = ["attiny85", "rt"] }

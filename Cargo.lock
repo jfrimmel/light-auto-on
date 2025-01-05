@@ -3,17 +3,10 @@
 version = 3
 
 [[package]]
-name = "Freundin-zufrieden"
-version = "0.1.0"
-dependencies = [
- "avr-device",
-]
-
-[[package]]
 name = "avr-device"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33259ed405295178a53a19a8ac6eedb27497460939a25a3b44c0bf131599b1ad"
+checksum = "520f2031240156132bd83639d86aeb5b1907e6a228d9a4b44c3e9699827e6dae"
 dependencies = [
  "avr-device-macros",
  "bare-metal",
@@ -23,9 +16,9 @@ dependencies = [
 
 [[package]]
 name = "avr-device-macros"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96b4a8199737a5c595df8c7e19c0fe3b56eee0627e5ac7fac2098ebd674e1154"
+checksum = "47c26fd925156183eb10e821b2ef7e06f8163f5a64a0bbe52fc896be2c6cbd3f"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -43,6 +36,13 @@ name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
+
+[[package]]
+name = "light-auto-on"
+version = "0.1.0"
+dependencies = [
+ "avr-device",
+]
 
 [[package]]
 name = "proc-macro2"
