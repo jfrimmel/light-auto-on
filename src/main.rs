@@ -1,3 +1,4 @@
+//! Automatic light fade-in/fade-oud in distance threshold toggle
 #![no_std]
 #![no_main]
 #![feature(abi_avr_interrupt)]
