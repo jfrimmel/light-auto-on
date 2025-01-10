@@ -95,7 +95,7 @@ fn main() -> ! {
 ///
 /// Note, that the sensor resolution is limited to ~2cm due to the caveats
 /// described in the [`object_detected()`] function.
-const DISTANCE_THRESHOLD_CM: f32 = 160.;
+const DISTANCE_THRESHOLD_CM: f32 = 170.;
 
 /// Check, if the SRF05 sensor detects an objected, i.e. a distance value is
 /// below a (hardcoded) threshold.
