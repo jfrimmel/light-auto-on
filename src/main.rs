@@ -34,7 +34,8 @@ enum StateMachine {
     /// The LEDs are currently on.
     ///
     /// This state will transition to [`StateMachine::TurningOff`] if the value
-    /// of the currently measured distance is above [`DISTANCE_THRESHOLD_CM`].
+    /// of the currently measured distance is above [`DISTANCE_THRESHOLD_CM`]
+    /// for some time.
     On,
     /// The LEDs are get faded out.
     ///
@@ -60,6 +61,7 @@ fn main() -> ! {
     let mut timer = timer0::Timer0::new(peripherals.TC0, portb);
 
     let mut state = StateMachine::Off;
+    let mut repeated_misses = 0;
     loop {
         let mut detect = || object_detected(&mut timer, cpu, watchdog, portb, ext);
         state = match state {
@@ -68,9 +70,21 @@ fn main() -> ! {
                 cpu.mcucr.write(|w| w.sm().idle());
                 timer.pwm(&LINEARIZATION, || power::sleep_for::<4>(cpu, watchdog));
                 timer.halt();
+                repeated_misses = 0;
                 StateMachine::On
             }
-            StateMachine::On if !detect() => StateMachine::TurningOff,
+            StateMachine::On if !detect() => {
+                if repeated_misses < 6 {
+                    repeated_misses += 1;
+                    StateMachine::On
+                } else {
+                    StateMachine::TurningOff
+                }
+            }
+            StateMachine::On => {
+                repeated_misses = 0;
+                StateMachine::On
+            }
             StateMachine::TurningOff => {
                 let sequence = LINEARIZATION.iter().rev();
                 cpu.mcucr.write(|w| w.sm().idle());
